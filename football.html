@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>足球</title>
+    <style>
+        html,
+        body,
+        #container {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        #container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #svg {
+            background-color: #008001;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <svg id="svg" xmlns="http://www.w3.org/2000/svg" version="1.1">
+
+        </svg>
+    </div>
+</body>
+<script src="./js/footbal-pitch.js"></script>
+<script src="./js/footballer.js"></script>
+<script>
+    const svg = document.querySelector("#svg");
+    //实例化一个足球场，并在svg中画出
+    const ftballPitch = new FootballPitch();
+          ftballPitch.drawFootballPitch(svg);
+    const ratio = ftballPitch.getRatio();
+    //运动员被实例化的同时也进行了DOM的创建，所以应该在足球场之后实例化，避免被覆盖
+    const footballer = new Footballer(ratio, svg);
+    footballer.run(footballer.random(100, 600), footballer.random(100, 600), footballer.random(100, 600), footballer.random(100, 600));
+
+</script>
+
+</html>
