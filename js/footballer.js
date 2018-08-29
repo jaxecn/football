@@ -32,7 +32,7 @@ class Footballer {
 
     drawFootballer(svg) {
         const NS = 'http://www.w3.org/2000/svg';
-        let circle = document.createElementNS(NS, 'circle');
+        const circle = document.createElementNS(NS, 'circle');
         circle.setAttribute('id', `footballer-${++count}`);
         circle.setAttribute('r', `${this.ratio}`);
         circle.setAttribute('fill', '#000');
@@ -65,11 +65,11 @@ class Footballer {
             minusAccelerration = endPointV,
             stamina = Math.round(this.getStaminaInMaxV()),
             nowTime = Date.now(),
-            nowV = 0,
-            xMove = 0,
-            yMove = 0,
             ratio = this.ratio,
-            t = 0;
+            nowV = null,
+            xMove = null,
+            yMove = null,
+            t = null;
 
         if(!endPointV) {
             //意思就是还没到终点时执行该代码块。

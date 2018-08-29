@@ -6,57 +6,203 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>足球</title>
-    <style>
-        html,
-        body,
-        #container {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-        }
-
-        #container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #svg {
-            background-color: #008001;
-        }
-
-    </style>
+    <link rel="stylesheet" href="./css/style.css">
 </head>
 
 <body>
-    <div id="container">
-        <svg id="svg" xmlns="http://www.w3.org/2000/svg" version="1.1">
+    <div id="container" class="flex-row">
 
-        </svg>
+        <div id="svg-container">
+            <svg id="svg" xmlns="http://www.w3.org/2000/svg" version="1.1">
+
+            </svg>
+        </div>
+
+        <div id="control">
+            <div id="btn-g" class="height-100">
+                <button onclick="onNext(this)">添加球员</button>
+                <button onclick="onNext(this)">设置足球</button>
+                <button>开始</button>
+            </div>
+
+            <div id="footballer-option" class="d-none">
+                <div>
+                    <p>速度值：50</p>
+                    <input type="range" name="v" min="1" max="99">
+                </div>
+
+                <div>
+                    <p>体力值：50</p>
+                    <input type="range" name="stamina" min="1" max="99">
+                </div>
+
+                <div>
+                    <p>爆发值：50</p>
+                    <input type="range" name="power" min="1" max="99">
+                </div>
+
+                <div>
+                    <p>技术值：50</p>
+                    <input type="range" name="skill" min="1" max="99">
+                </div>
+                <button onclick="onBackToHome(this)">返回</button>
+                <button>添加</button>
+            </div>
+
+            <div id="football-option" class="d-none">
+                <div>
+                    <p>初始位置X：50</p>
+                    <input type="range" name="dx">
+                </div>
+
+                <div>
+                    <p>初始位置Y：50</p>
+                    <input type="range" name="dy">
+                </div>
+
+                <div>
+                    <p>运动方向：180</p>
+                    <input type="range" name="direction" min="0" max="360" 
+                        onmouseover="onShowDirection(this)"
+                        onmouseout="onHideDirection()"
+                        ontouchstart="onShowDirection(this)"
+                        ontouchend="onHideDirection()">
+                </div>
+
+                <div>
+                    <p>初始速度：50</p>
+                    <input type="range" name="v0" min="1" max="100">
+                </div>
+
+                <div>
+                    <p>加速度：-50</p>
+                    <input type="range" name="accelerate" " min="-100" max="-1">
+                </div>
+                <button onclick="onBackToHome(this) ">返回</button>
+                <button onclick="onMove()">踢出</button>
+            </div>
+        </div>
     </div>
 </body>
-<script src="./js/footbal-pitch.js"></script>
-<script src="./js/footballer.js"></script>
+<script src="./js/physicsModel.js "></script>
+<script src="./js/footbal-pitch.js "></script>
+<script src="./js/footballer.js "></script>
+<script src="./js/football.js "></script>
 <script>
-    const svg = document.querySelector("#svg");
+    const svg = document.querySelector("#svg ");
     //实例化一个足球场，并在svg中画出
     const ftballPitch = new FootballPitch();
-          ftballPitch.drawFootballPitch(svg);
+    ftballPitch.drawFootballPitch(svg);
     const ratio = ftballPitch.getRatio();
-    //运动员被实例化的同时也进行了DOM的创建，所以应该在足球场之后实例化，避免被覆盖
-    new Footballer(ratio, svg).run(0, ratio * 1.2, ratio * 36.6, ratio * 1.2);
-    new Footballer(ratio, svg).run(0, ratio * 6.24, ratio * 36.6, ratio * 6.24);
-    new Footballer(ratio, svg).run(0, ratio * 10.36, ratio * 36.6, ratio * 10.36);
-    new Footballer(ratio, svg).run(0, ratio * 14.18, ratio * 36.6, ratio * 14.18);
-    new Footballer(ratio, svg).run(0, ratio * 18.6, ratio * 36.6, ratio * 18.6);
-    new Footballer(ratio, svg).run(0, ratio * 22.72, ratio * 36.6, ratio * 22.72);
-    new Footballer(ratio, svg).run(0, ratio * 26.84, ratio * 36.6, ratio * 26.84);
-    new Footballer(ratio, svg).run(0, ratio * 30.96, ratio * 36.6, ratio * 30.96);
-    new Footballer(ratio, svg).run(0, ratio * 35.08, ratio * 36.6, ratio * 35.08);
-    new Footballer(ratio, svg).run(0, ratio * 39.2, ratio * 36.6, ratio * 39.2);
-    new Footballer(ratio, svg).run(0, ratio * 43.32, ratio * 36.6, ratio * 43.32);
-    new Footballer(ratio, svg).run(0, ratio * 46.1, ratio * 36.6, ratio * 46.1);
-    </script>
-    
+
+    const rangeGroup = document.querySelectorAll('input[type=range]');
+    for (item of rangeGroup) {
+        item.oninput = onUpdateProperty;
+        item.name == 'dx' && (item.setAttribute('min', '0'), item.setAttribute('max', `${73.2 * ratio}`));
+        item.name == 'dy' && (item.setAttribute('min', '0'), item.setAttribute('max', `${47.4 * ratio}`));
+    }
+
+    const footballParameter = {
+        direction: 180,
+        v0: 50,
+        a: -50,
+        translate: null,
+    }
+    const football = new Football(svg, ratio);
+    //更新视图 
+    updateView();
+
+    function updateView() {
+        const container = document.querySelector('#container');
+        window.innerHeight > window.innerWidth
+            ? container.setAttribute('class', 'flex-col')
+            : container.setAttribute('class', 'flex-row');
+    }
+
+    function onNext(target) {
+        target.parentNode.setAttribute('class', 'height-0');
+        if (target.innerHTML == '添加球员') {
+            document.querySelector('#footballer-option').setAttribute('class', 'option');
+            document.querySelector('#football-option').setAttribute('class', 'd-none');
+        } else {
+            document.querySelector('#footballer-option').setAttribute('class', 'd-none');
+            document.querySelector('#football-option').setAttribute('class', 'option');
+        }
+    }
+
+    function onBackToHome(target) {
+        document.querySelector('#btn-g').setAttribute('class', 'height-100');
+        target.parentNode.setAttribute('class', 'd-none');
+    }
+
+    function onUpdateProperty(e) {
+        let v = e.target.value;
+        switch (this.name) {
+            case 'v':
+                this.previousElementSibling.innerHTML = `速度值：${v}`;
+                break;
+            case 'stamina':
+                this.previousElementSibling.innerHTML = `体力值：${v}`;
+                break;
+            case 'power':
+                this.previousElementSibling.innerHTML = `爆发值：${v}`;
+                break;
+            case 'skill':
+                this.previousElementSibling.innerHTML = `技术值：${v}`;
+                break;
+            case 'dx':
+                this.previousElementSibling.innerHTML = `初始位置X：${v}`;
+                football.dom.setAttribute('x', v);
+                football.location.x0 = v;
+                break;
+            case 'dy':
+                this.previousElementSibling.innerHTML = `初始位置Y：${v}`;
+                football.dom.setAttribute('y', v);
+                football.location.y0 = v;
+                break;
+            case 'v0':
+                this.previousElementSibling.innerHTML = `初始速度：${v}`;
+                footballParameter.v0 = v;
+                break;
+            case 'direction':
+                this.previousElementSibling.innerHTML = `运动方向：${v}`;
+                footballParameter.direction = v;
+                const parentDom = football.dom.parentNode;
+                parentDom.setAttribute('transform', `${footballParameter.translate} rotate(${v}, ${ratio/2}, ${ratio/2})`);
+                break;
+            case 'accelerate':
+                this.previousElementSibling.innerHTML = `加速度：${v}`;
+                footballParameter.a = v;
+                break;
+            default:
+                break;
+        }
+    }
+
+    function onShowDirection(target) {
+        const location = football.location,
+            dom = football.dom;
+        footballParameter.translate = `translate(${location.x0}, ${location.y0})`;
+        dom.removeAttribute('x');
+        dom.removeAttribute('y');
+        dom.parentNode.setAttribute('transform', `translate(${location.x0}, ${location.y0}) rotate(${target.value}, ${ratio/2}, ${ratio/2})`);
+        dom.previousElementSibling.setAttribute('opacity', '1');
+    }
+
+    function onHideDirection() {
+        const location = football.location,
+            dom = football.dom;
+        dom.parentNode.removeAttribute('transform');
+        dom.setAttribute('x', location.x0);
+        dom.setAttribute('y', location.y0);
+        dom.previousElementSibling.setAttribute('opacity', '0');
+        //初始化位移参数
+        footballParameter.translate = null;
+    }
+
+    function onMove() {
+        football.move(footballParameter);
+    }
+</script>
 
 </html>

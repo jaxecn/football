@@ -9,7 +9,8 @@ class FootballPitch {
     }
 
     getRatio() {
-        const widthRatio = Math.floor(window.innerWidth / 80);
+        const b = window.innerHeight > window.innerWidth;
+        const widthRatio = Math.floor(window.innerWidth * (b ? 1 : 0.8) / 80);
         const heightRatio = Math.floor(window.innerHeight / 50);
         return widthRatio < heightRatio ? widthRatio : heightRatio;
     }
