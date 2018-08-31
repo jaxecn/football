@@ -11,10 +11,8 @@
 
 <body>
     <div id="container" class="flex-row">
-
         <div id="svg-container">
             <svg id="svg" xmlns="http://www.w3.org/2000/svg" version="1.1">
-
             </svg>
         </div>
 
@@ -22,7 +20,7 @@
             <div id="btn-g" class="height-100">
                 <button onclick="onNext(this)">添加球员</button>
                 <button onclick="onNext(this)">设置足球</button>
-                <button>开始</button>
+                <button onclick="onNext(this)">开始</button>
             </div>
 
             <div id="footballer-option" class="d-none">
@@ -30,23 +28,25 @@
                     <p>速度值：50</p>
                     <input type="range" name="v" min="1" max="99">
                 </div>
-
                 <div>
                     <p>体力值：50</p>
                     <input type="range" name="stamina" min="1" max="99">
                 </div>
-
                 <div>
                     <p>爆发值：50</p>
                     <input type="range" name="power" min="1" max="99">
                 </div>
-
                 <div>
                     <p>技术值：50</p>
                     <input type="range" name="skill" min="1" max="99">
                 </div>
+                <div>
+                    <p>力量值：50</p>
+                    <input type="range" name="force" min="1" max="99">
+                </div>
+                <button onclick="onAddFootballer()">添加</button>
+                <button onclick="onRunToFootball()">奔向球</button>
                 <button onclick="onBackToHome(this)">返回</button>
-                <button>添加</button>
             </div>
 
             <div id="football-option" class="d-none">
@@ -54,12 +54,10 @@
                     <p>初始位置X：50</p>
                     <input type="range" name="dx">
                 </div>
-
                 <div>
                     <p>初始位置Y：50</p>
                     <input type="range" name="dy">
                 </div>
-
                 <div>
                     <p>运动方向：180</p>
                     <input type="range" name="direction" min="0" max="360" 
@@ -68,18 +66,39 @@
                         ontouchstart="onShowDirection(this)"
                         ontouchend="onHideDirection()">
                 </div>
-
                 <div>
                     <p>初始速度：50</p>
                     <input type="range" name="v0" min="1" max="100">
                 </div>
-
                 <div>
                     <p>加速度：-50</p>
                     <input type="range" name="accelerate" " min="-100" max="-1">
                 </div>
-                <button onclick="onBackToHome(this) ">返回</button>
                 <button onclick="onMove()">踢出</button>
+                <button onclick="onRunToFootball()">奔向球</button>
+                <button onclick="onBackToHome(this) ">返回</button>
+            </div>
+            <div id="start-game" class="d-none">
+                <div>
+                    <p>运动方向：180</p>
+                    <input type="range" name="direction" min="0" max="360" 
+                        onmouseover="onShowDirection(this)"
+                        onmouseout="onHideDirection()"
+                        ontouchstart="onShowDirection(this)"
+                        ontouchend="onHideDirection()">
+                </div>
+                <div>
+                    <p>初始速度：50</p>
+                    <input type="range" name="v0" min="1" max="100">
+                </div>
+                <div>
+                    <p>加速度：-50</p>
+                    <input type="range" name="accelerate" " min="-100" max="-1">
+                </div>
+                <button onclick="onRunToFootball()">跑向球</button>
+                <button onclick="onKickFootball()">踢球</button>
+                <button onclick="onRunAndKickToFootball()">跑向球并踢球</button>
+                <button onclick="onBackToHome(this) ">返回</button>
             </div>
         </div>
     </div>
@@ -108,6 +127,15 @@
         a: -50,
         translate: null,
     }
+    const footballerParameter = {
+        v: 50,
+        skill: 50,
+        force: 50,
+        power: 50,
+        stamina: 50,
+    }
+    //存放足球运动员的数组。
+    let footballers = [];
     const football = new Football(svg, ratio);
     //更新视图 
     updateView();
@@ -119,14 +147,46 @@
             : container.setAttribute('class', 'flex-row');
     }
 
+    function footballerObserver(instance, callback) {
+        //当运动员与球接触时，运行callback。
+        let x = football.location.x0,
+            y = football.location.y0,
+            direction = instance.getMoveDirection(x, y);
+
+        instance.isRun = true;
+        function animation() {
+            const l = instance.location;
+            const status = instance.run(x, y);
+            let x1 = football.isMove ? football.location.newX : football.location.x0;
+                y1 = football.isMove ? football.location.newY : football.location.y0;
+            if(Math.abs(x1 - l.newX) <= ratio/2 && Math.abs(y1 - l.newY) <= ratio/2) {
+                callback({instance, status, direction})
+                // //让运动员停下来。
+                // instance.isRun = false;
+                // //运动员到达球的位置之后，带球运动
+                // if(!football.isMove) {
+                //     football.move({direction, v0: status.nowV, a: -1 * status.nowV})
+                // }
+            }
+            if(!status.isEndPoint) requestAnimationFrame(animation);
+        }
+        animation();
+    }
+
     function onNext(target) {
         target.parentNode.setAttribute('class', 'height-0');
         if (target.innerHTML == '添加球员') {
             document.querySelector('#footballer-option').setAttribute('class', 'option');
             document.querySelector('#football-option').setAttribute('class', 'd-none');
+            document.querySelector('#start-game').setAttribute('class', 'd-none');
+        } else if(target.innerHTML == '设置足球') {
+            document.querySelector('#footballer-option').setAttribute('class', 'd-none');
+            document.querySelector('#start-game').setAttribute('class', 'd-none');
+            document.querySelector('#football-option').setAttribute('class', 'option');
         } else {
             document.querySelector('#footballer-option').setAttribute('class', 'd-none');
-            document.querySelector('#football-option').setAttribute('class', 'option');
+            document.querySelector('#start-game').setAttribute('class', 'option');
+            document.querySelector('#football-option').setAttribute('class', 'd-none');
         }
     }
 
@@ -135,30 +195,43 @@
         target.parentNode.setAttribute('class', 'd-none');
     }
 
+    function onAddFootballer() {
+        footballers.push(new Footballer({ratio, svg, ...footballerParameter}));
+    }
+
     function onUpdateProperty(e) {
-        let v = e.target.value;
+        //添加加号是为了把字符串转换成数字
+        let v = +e.target.value;
         switch (this.name) {
             case 'v':
                 this.previousElementSibling.innerHTML = `速度值：${v}`;
+                footballerParameter.v = v;
                 break;
             case 'stamina':
                 this.previousElementSibling.innerHTML = `体力值：${v}`;
+                footballerParameter.stamina = v;
                 break;
             case 'power':
                 this.previousElementSibling.innerHTML = `爆发值：${v}`;
+                footballerParameter.power = v;
                 break;
             case 'skill':
                 this.previousElementSibling.innerHTML = `技术值：${v}`;
+                footballerParameter.skill = v;
+                break;
+            case 'force':
+                this.previousElementSibling.innerHTML = `力量值：${v}`;
+                footballerParameter.force = v;
                 break;
             case 'dx':
                 this.previousElementSibling.innerHTML = `初始位置X：${v}`;
-                football.dom.setAttribute('x', v);
                 football.location.x0 = v;
+                football.dom.setAttribute('x', v);
                 break;
             case 'dy':
                 this.previousElementSibling.innerHTML = `初始位置Y：${v}`;
-                football.dom.setAttribute('y', v);
                 football.location.y0 = v;
+                football.dom.setAttribute('y', v);
                 break;
             case 'v0':
                 this.previousElementSibling.innerHTML = `初始速度：${v}`;
@@ -167,8 +240,7 @@
             case 'direction':
                 this.previousElementSibling.innerHTML = `运动方向：${v}`;
                 footballParameter.direction = v;
-                const parentDom = football.dom.parentNode;
-                parentDom.setAttribute('transform', `${footballParameter.translate} rotate(${v}, ${ratio/2}, ${ratio/2})`);
+                football.dom.parentNode.setAttribute('transform', `${footballParameter.translate} rotate(${v}, ${ratio/2}, ${ratio/2})`);
                 break;
             case 'accelerate':
                 this.previousElementSibling.innerHTML = `加速度：${v}`;
@@ -202,6 +274,47 @@
 
     function onMove() {
         football.move(footballParameter);
+    }
+
+    function onRunToFootball() {
+        const ftbers = footballers,
+            ftb = football;
+        for(const item of ftbers) {
+            footballerObserver(item, ({instance, status, direction}) => {
+                //运动员到达球的位置之后，带球运动
+                if(instance.isRun) {
+                    instance.isGotBall = true;
+                    // ftb.move({direction, v0: status.nowV, a: -1 * status.nowV})
+                    item.kickFootball(ftb, {direction, v0: status.nowV, a: -1 * status.nowV});
+                }
+                //让运动员停下来。
+                instance.isRun = false;
+            });
+        }
+    }
+
+    function onRunAndKickToFootball() {
+        const ftb = football,
+            ftbPara = footballParameter;
+        footballerObserver(footballers[0], ({instance}) => {
+            instance.isRun = false;
+            if(!ftb.isMove) {
+                // ftb.move({...ftbPara});
+                footballers[0].kickFootball(ftb, {...ftbPara});
+            }
+        })
+    }
+
+    function onKickFootball() {
+        for(const item of footballers) {
+            if(item.isGotBall) {
+                item.isGotBall = false;
+                football.isMove = false;
+                setTimeout(() => {
+                    item.kickFootball(football, {...footballParameter});
+                }, 50);
+            }
+        }
     }
 </script>
 

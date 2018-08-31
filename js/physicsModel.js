@@ -22,10 +22,10 @@ class PhysicsModel {
     }
 
     getXUseCos(direction, distance) {
-        return Math.cos(direction * 2 * Math.PI / 360) * distance + this.location['x0'];
+        return Math.cos(direction * Math.PI / 180) * distance + this.location.x0;
     }
 
     getYUseSin(direction, distance) {
-        return Math.sin(direction * 2 * Math.PI / 360) * distance + this.location['y0'];
+        return Math.sin(direction * Math.PI / 180) * distance + this.location.y0;
     }
 }
