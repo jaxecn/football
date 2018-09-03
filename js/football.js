@@ -10,6 +10,7 @@ class Football extends PhysicsModel {
             newX: null,
             newY: null,
         };
+        this.ballPara = null;
         this.isMove = false;
         this.dom = this.drawFootball(svg);
     }
@@ -40,41 +41,52 @@ class Football extends PhysicsModel {
         return football;
     }
 
-    move({direction, v0, a}) {
-        //参数分别是运动方向，初始速度，加速度
-        if(!this.startTime) {
-            this.isMove = true;
+    getStopLocation({ direction, v0, a }) {
+        const sx = this.location.x0,
+            sy = this.location.y0,
+            distance = this.ratio * Math.abs(v0 ** 2 / (2 * a)),
+            location = { x: null, y: null, };
+        location.x = Math.cos(direction * Math.PI / 180) * distance + sx;
+        location.y = Math.sin(direction * Math.PI / 180) * distance + sy;
+        return location;
+    }
+
+    move() {
+        if (!this.startTime) {
+            // this.isMove = true;
             this.startTime = Date.now();
-            window.requestAnimationFrame(() => this.move({direction, v0, a}));
+            window.requestAnimationFrame( () => this.move() );
+            return;
+        }
+        const { direction, v0, a } = this.ballPara || {direction: 0, v0: 0, a: 0},
+            nowTime = Date.now(),
+            t = (nowTime - this.startTime) / 1000,
+            moveDistance = this.ratio * this.getMoveDistance(v0, a, t),
+            newX = this.getXUseCos(direction, moveDistance),
+            newY = this.getYUseSin(direction, moveDistance);
+        //更新实例的坐标属性
+        this.location.newX = newX;
+        this.location.newY = newY;
+        this.dom.setAttribute('x', newX);
+        this.dom.setAttribute('y', newY);
+        const leftNet = newX <= -0.8 * this.ratio && newY >= 21.2 * this.ratio && newY <= 26.2 * this.ratio,
+            rightNet = newX >= 74 * this.ratio && newY >= 21.2 * this.ratio && newY <= 26.2 * this.ratio;
+        //判断是否进球。    
+        if (leftNet || rightNet) {
+            this.isMove = false;
+        }
+
+        if (Math.abs(a * t) < v0 && this.isMove) {
+            window.requestAnimationFrame(() => this.move());
         } else {
-            const nowTime = Date.now();
-            const t = (nowTime - this.startTime) / 1000;
-            const moveDistance = this.getMoveDistance(v0, a, t);
-            const newX = this.getXUseCos(direction, moveDistance);
-            const newY = this.getYUseSin(direction, moveDistance);
-            //更新实例的坐标属性
-            this.location.newX = newX;
-            this.location.newY = newY;
-            this.dom.setAttribute('x', newX);
-            this.dom.setAttribute('y', newY);
-            const leftNet = newX <= -0.8 * this.ratio && newY >= 21.2 * this.ratio && newY <= 26.2 * this.ratio,
-                rightNet = newX >= 74 * this.ratio && newY >= 21.2 * this.ratio && newY <= 26.2 * this.ratio;
-            //判断是否进球。    
-            if(leftNet || rightNet) {
-                this.isMove = false;
-            }
-    
-            if(Math.abs(a * t) < v0 && this.isMove) {
-                window.requestAnimationFrame(() => this.move({direction, v0, a}));
-            } else {
-                this.isMove = false;
-                this.startTime = null;
-                const l = this.location;
-                l.x0 = newX;
-                l.y0 = newY;
-                l.newX = null;
-                l.newY = null;
-            }
+            this.isMove = false;
+            this.ballPara = null;
+            this.startTime = null;
+            const l = this.location;
+            l.x0 = newX;
+            l.y0 = newY;
+            l.newX = null;
+            l.newY = null;
         }
     }
 }

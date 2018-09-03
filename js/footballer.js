@@ -1,25 +1,38 @@
 let count = 0;
-class Footballer {
-    constructor({ratio, svg, v, power, stamina, force, skill}) {
+class Footballer extends PhysicsModel {
+    constructor({ ratio, svg, v, power, stamina, force, skill }) {
+        super();
+        this.id = count + 1;
         this.ratio = ratio;
         this.location = {
             x0: this.random(0, 73.2 * ratio),
             y0: this.random(0, 47.4 * ratio),
-            newX: null,
-            newY: null,
+            newX: undefined,
+            newY: undefined,
         };
-        this.moveDirection = null;
         this.dom = this.drawFootballer(svg);
         this.v = v;
         this.power = power;
         this.stamina = stamina;
         this.force = force;
         this.skill = skill;
-        //该属性用来记录速度状态改变时的时间点
-        this.status = { index: 0, beforeTime: [] };
+        this.status = {
+            index: 0,
+            index0: 0,
+            beforeTime: 0,
+            beforeV: 0,
+            beforeXV: 0,
+            beforeYV: 0,
+            startTimeOfMaxV: 0,
+            startTimeOnChangeDirection: 0,
+            xA: 0,
+            yA: 0,
+        };
+        this.direction = null;
         this.endPointV = null;
+        this.endPointLocation = null;
         this.isRun = false;
-        this.isGotBall = false;
+        this.isStop = true;
     }
 
     random(min, max) {
@@ -27,7 +40,11 @@ class Footballer {
     }
 
     getMaxV() {
-        return Math.floor(3 + (this.v - 1) * ( 9 / 98 ));
+        return 3 + (this.v - 1) * 9 / 98;
+    }
+
+    getMaxV0() {
+        return 5 + (this.force - 1) * 45 / 98;
     }
 
     getAcceleration() {
@@ -66,175 +83,148 @@ class Footballer {
         return Math.atan2(ey - this.location.y0, ex - this.location.x0) * 180 / Math.PI;
     }
 
-    kickFootball(football, {v0, direction, a}) {
-        football.move({direction, v0, a});
+    kickFootball(football, ballPara) {
+        if(this.id === Footballer.whoIsGotBall) {
+            Footballer.whoIsGotBall = 0;
+            this.dom.removeAttribute('stroke');
+            football.ballPara = ballPara;
+            football.isMove = true;
+            football.move();
+        }
     }
 
-    run(ex, ey) {
-        const beforeTime = this.status.beforeTime;
-        if(!this.status.index) {
-            ////如果是第一次运行status.index状态值为0，更新它的值
-            this.status.index = 1;
-            beforeTime.push(Date.now() / 1000);
+    run() {
+        const status = this.status,
+            location = this.location;
+        if (!status.index) {
+            status.index = 1;
+            status.beforeTime = Date.now() / 1000;
+            location.newX = location.x0;
+            location.newY = location.y0;
             // window.requestAnimationFrame(() => this.run(ex, ey));
-            //false的意思是还没有到达终点。
-            return false;
-        };
-        const location = this.location,
-            sx = location.x0,
-            sy = location.y0;
+            return;
+        }
         let maxV = this.getMaxV(),
             generalV = maxV / 2,
-            endPointV = this.endPointV,
-            Acceleration = Math.round(this.getAcceleration()),
-            minusAccelerration = 1.4 * endPointV,
-            stamina = Math.round(this.getStaminaInMaxV()),
+            acceleration = this.getAcceleration(),
+            stamina = this.getStaminaInMaxV(),
             nowTime = Date.now() / 1000,
+            t = nowTime - status.beforeTime,
             ratio = this.ratio,
-            nowV = null,
-            xMove = null,
-            yMove = null,
-            t = null;
+            xMove = 0,
+            yMove = 0;
+        //更新时间，供下次循环计算。
+        status.beforeTime = nowTime;
 
-        if(!endPointV) {
-            //意思就是还没到终点时执行该代码块。
-            switch(this.status.index) {
-                //5个case分别代表5个不同的时间点，
-                //分别是起步加速，到达最大值匀速，持久力耗尽减速，
-                //匀速，到达终点减速5个状态。
-                case 1:
-                    t = (nowTime - beforeTime[0]);
-                    nowV = t * Acceleration;
-                    //状态值改变的同时t一定要初始化为0，不然会影响到之后计算移动距离。下同。
-                    nowV >= maxV && (nowV = maxV, beforeTime.push(nowTime), this.status.index = 2, t = 0);
-                    break;
-                case 2:
-                    t = (nowTime - beforeTime[1]);
-                    nowV = maxV;
-                    t >= stamina && (beforeTime.push(nowTime), this.status.index = 3, t = 0);
-                    break;
-                case 3:
-                    t = (nowTime - beforeTime[2]);
-                    nowV = maxV - t * generalV;//这里耗尽体力减速时的加速度设为generalV
-                    nowV <= generalV && (nowV = generalV, beforeTime.push(nowTime), this.status.index = 4, t = 0);
-                    break;
-                case 4:
-                    t = (nowTime - beforeTime[3]);
-                    nowV = generalV;
-                    break;
-            };
-
-            var getMoveDistance = () => {
-                let moveDistance;
-                switch (this.status.index) {
-                    case 1:
-                        moveDistance = t * nowV / 2;
-                        break;
-                    case 2:
-                        var t1 = (beforeTime[1] - beforeTime[0]);
-                        moveDistance = t * nowV + t1 * maxV / 2;
-                        break;
-                    case 3:
-                        var t1 = (beforeTime[1] - beforeTime[0]);
-                        var t2 = (beforeTime[2] - beforeTime[1]);
-                        moveDistance = t2 * maxV + t1 * maxV / 2 + (maxV + nowV) * t / 2;
-                        break;
-                    case 4:
-                        var t1 = (beforeTime[1] - beforeTime[0]);
-                        var t2 = (beforeTime[2] - beforeTime[1]);
-                        var t3 = (beforeTime[3] - beforeTime[2]);
-                        moveDistance = t1 * maxV / 2 + t2 * maxV + (maxV + generalV) * t3 / 2 + nowV * t;
-                        break;
-                };
-                return moveDistance;
-            };
-        } else {
-            //到达终点时执行该代码块
-            updateNowVAfterEndPoint(this.status.index);
-            var getMoveDistance = () => {
-                let moveDistance;
-                switch (this.status.index) {
-                    case 1:
-                        var t1 = beforeTime[1] - beforeTime[0];
-                        moveDistance = t1 * endPointV / 2 + t * (endPointV + nowV) / 2;
-                        break;
-                    case 2:
-                        var t1 = (beforeTime[1] - beforeTime[0]);
-                        var t2 = (beforeTime[2] - beforeTime[1]);
-                        moveDistance = t1 * maxV / 2 + t2 * maxV + t * (endPointV + nowV) / 2;
-                        break;
-                    case 3:
-                        var t1 = (beforeTime[1] - beforeTime[0]);
-                        var t2 = (beforeTime[2] - beforeTime[1]);
-                        var t3 = (beforeTime[3] - beforeTime[2]);
-                        moveDistance = t1 * maxV / 2 + t2 * maxV + t3 * (maxV + endPointV) / 2 + t * (endPointV + nowV) / 2;
-                        break;
-                    case 4:
-                        var t1 = (beforeTime[1] - beforeTime[0]);
-                        var t2 = (beforeTime[2] - beforeTime[1]);
-                        var t3 = (beforeTime[3] - beforeTime[2]);
-                        var t4 = (beforeTime[4] - beforeTime[3]);
-                        moveDistance = t1 * maxV / 2 + t2 * maxV + t3 * (maxV + endPointV) / 2 + t4 * generalV + t * (endPointV + nowV) / 2;
-                        break;
-                };
-                return moveDistance;
-            };
+        switch (status.index) {
+            case 1:
+                status.xA = Math.cos(this.direction * Math.PI / 180) * acceleration;
+                status.yA = Math.sin(this.direction * Math.PI / 180) * acceleration;
+                status.beforeV += acceleration * t;
+                if (status.beforeV >= maxV) {
+                    status.beforeV = maxV;
+                    status.index = 2;
+                }
+                console.log(1);
+                break;
+            case 2:
+                status.startTimeOfMaxV || (status.startTimeOfMaxV = nowTime - t);
+                status.xA = 0;
+                status.yA = 0;
+                if (nowTime - status.startTimeOfMaxV >= stamina) {
+                    status.index = 3;
+                    status.startTimeOfMaxV = 0;
+                }
+                console.log(2);
+                break;
+            case 3:
+                //在第三阶段的减速度设为一般速度。
+                status.xA = Math.cos(this.direction * Math.PI / 180) * -1 * generalV;
+                status.yA = Math.sin(this.direction * Math.PI / 180) * -1 * generalV;
+                status.beforeV += -1 * generalV * t;
+                if (status.beforeV <= generalV) {
+                    status.beforeV = generalV;
+                    status.beforeXV = -1 * status.xA;
+                    status.beforeYV = -1 * status.yA;
+                    status.index = 4;
+                }
+                console.log(3);
+                break;
+            case 4:
+                status.xA = 0;
+                status.yA = 0;
+                console.log(4);
+                break;
+            case 5:
+                status.startTimeOnChangeDirection || (status.startTimeOnChangeDirection = nowTime - t);
+                const xV = Math.cos(this.direction * Math.PI / 180) * status.beforeV;
+                const yV = Math.sin(this.direction * Math.PI / 180) * status.beforeV;
+                //1是指在1秒内完成方向的变换。
+                if(!Footballer.count) {
+                    status.xA = xV - status.beforeXV / 1;
+                    status.yA = yV - status.beforeYV / 1;
+                    Footballer.count = 1;
+                }
+                if (nowTime - status.startTimeOnChangeDirection >= 1) {
+                    //变换好方向之后，还要重新矫正球运动的方向。
+                    location.x0 = location.newX;
+                    location.y0 = location.newY;
+                    const end = this.endPointLocation;
+                    this.direction = this.getMoveDirection(end.x, end.y);
+                    status.beforeXV = Math.cos(this.direction * Math.PI / 180) * status.beforeV;
+                    status.beforeYV = Math.sin(this.direction * Math.PI / 180) * status.beforeV;
+                    status.index = status.index0;
+                    status.index0 = 0;
+                    status.startTimeOnChangeDirection = 0;
+                    Footballer.count = 0;
+                }
+                console.log(5);
+                break;
+            case 6:
+                this.endPointV || (this.endPointV = status.beforeV);
+                //到达终点时的减速度设为到达终点时速度的2倍，这样可以在0.5秒停下来。
+                status.xA = Math.cos(this.direction * Math.PI / 180) * -2 * this.endPointV;
+                status.yA = Math.sin(this.direction * Math.PI / 180) * -2 * this.endPointV;
+                status.beforeV += -2 * this.endPointV * t;
+                if (status.beforeV <= 0) {
+                    init(this);
+                    return;
+                }
+                console.log(6);
+                break;
         }
 
-        function updateNowVAfterEndPoint(status) {
-            beforeTime.length == status && beforeTime.push(nowTime);
-            t = (nowTime - beforeTime[status]);
-            nowV = endPointV - t * minusAccelerration;
-        }
-        
-        function getXMove () {
-            const moveDistance = getMoveDistance();
-            xMove = ratio * (ex - sx) * moveDistance / Math.sqrt((ex - sx)**2 + (ey - sy)**2);
-            return xMove;
-        };
+        xMove = ratio * this.getMoveDistance(status.beforeXV, status.xA, t, 'X');
+        yMove = ratio * this.getMoveDistance(status.beforeYV, status.yA, t, 'Y');
 
-        function getYMove () {
-            const moveDistance = getMoveDistance();
-            yMove = ratio * (ey - sy) * moveDistance / Math.sqrt((ex - sx)**2 + (ey - sy)**2);
-            return yMove;
-        };
+
+        this.dom.setAttribute('cx', location.newX + xMove);
+        this.dom.setAttribute('cy', location.newY + yMove);
+
+        location.newX += xMove;
+        location.newY += yMove;
 
         function init(_this) {
             const location = _this.location;
             _this.endPointV = null;
-            _this.status = { index: 0, beforeTime: [] };
+            _this.endPointLocation = null;
+            _this.direction = null;
+            _this.status = {
+                index: 0,
+                index0: 0,
+                beforeTime: 0,
+                beforeV: 0,
+                beforeXV: 0,
+                beforeYV: 0,
+                startTimeOfMaxV: 0,
+                startTimeOnChangeDirection: 0,
+                xA: 0,
+                yA: 0,
+            };
             location.x0 = location.newX;
             location.y0 = location.newY;
-            location.newX = null;
-            location.newY = null;
             _this.isRun = false;
-            return {
-                isEndPoint: true,
-                nowV,
-            };
-        }
-
-        this.dom.setAttribute('cx', sx + getXMove());
-        this.dom.setAttribute('cy', sy + getYMove());
-
-        this.location.newX = sx + xMove;
-        this.location.newY = sy + yMove;
-
-        if((Math.abs(ex - sx) > Math.abs(xMove) || Math.abs(ey - sy) > Math.abs(yMove)) && this.isRun) {
-            // window.requestAnimationFrame(() => this.run(ex, ey));
-            return {
-                isEndPoint: false,
-                nowV,
-            };
-        } else if(nowV > 0) {
-            endPointV || (this.endPointV = nowV);
-            // window.requestAnimationFrame(() => this.run(ex, ey));
-            return {
-                isEndPoint: false,
-                nowV,
-            };
-        } else {
-            return init(this);
+            _this.isStop = true;
         }
     }
 }
