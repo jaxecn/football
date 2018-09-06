@@ -33,6 +33,7 @@ class Footballer extends PhysicsModel {
         this.endPointLocation = null;
         this.isRun = false;
         this.isStop = true;
+        this.isChangeDirection = false;
     }
 
     random(min, max) {
@@ -58,16 +59,51 @@ class Footballer extends PhysicsModel {
         return sec;
     }
 
+    getVarianceOfDirection() {
+        //为了简化问题，技术值为99的标准差为1，方差为1
+        //技术值为1的标准差为为3，方差为9
+        //假设技术值与方差呈线性关系。
+        return 9 + (1 - this.skill) * 4 / 49;
+    }
+
+    getVarianceOfV0() {
+        //同上。
+        return 9 + (1 - this.skill) * 4 / 49;
+    }
+
+    getProbabilityUseVariance() {
+        //用求得的方差求获得期望值的概率
+        const variD = this.getVarianceOfDirection(),
+            variV = this.getVarianceOfV0(),
+            //下表是指经过简化的标准正态分布表。
+            list = [0.5000, 0.5398, 0.5793, 0.6179, 0.6554, 0.6915, 0.7257, 0.7580, 0.7881, 0.8159, 0.8413, 0.8643, 0.8849, 0.9032, 0.9192, 0.9332, 0.9452, 0.9554, 0.9641, 0.9713, 0.9772, 0.9821, 0.9861, 0.9893, 0.9918, 0.9938, 0.9953, 0.9965, 0.9974, 0.9981, 0.9987];
+        const probaD = list[Math.round(10 * 3 / Math.sqrt(variD))] * 2 - 1,
+            probaV = list[Math.round(10 * 3 / Math.sqrt(variV))] * 2 - 1;
+        return { probabilityD: probaD, probabilityV0: probaV, };
+    }
+
     drawFootballer(svg) {
         const NS = 'http://www.w3.org/2000/svg';
         const circle = document.createElementNS(NS, 'circle');
+        const text = document.createElementNS(NS, 'text');
         circle.setAttribute('id', `footballer-${count++}`);
         circle.setAttribute('r', `${this.ratio}`);
         circle.setAttribute('fill', '#000');
         circle.setAttribute('cx', this.location.x0);
         circle.setAttribute('cy', this.location.y0);
         circle.setAttribute('transform', `translate(${3.4 * this.ratio}, ${1.3 * this.ratio})`);
+        text.innerHTML = count;
+        text.setAttribute('x', this.location.x0);
+        text.setAttribute('y', this.location.y0);
+        text.setAttribute('fill', '#fff');
+        text.setAttribute('font-size', 1.6 * this.ratio);
+        if(count < 10) {
+            text.setAttribute('transform', `translate(${3 * this.ratio}, ${1.8 * this.ratio})`);
+        } else {
+            text.setAttribute('transform', `translate(${2.6 * this.ratio}, ${1.8 * this.ratio})`);
+        }
         svg.appendChild(circle);
+        svg.appendChild(text);
         // svg.innerHTML += `
         //     <circle id='footballer-${++count}'
         //         r=${this.ratio}
@@ -87,6 +123,15 @@ class Footballer extends PhysicsModel {
         if(this.id === Footballer.whoIsGotBall) {
             Footballer.whoIsGotBall = 0;
             this.dom.removeAttribute('stroke');
+            const probability = this.getProbabilityUseVariance();
+            console.log('随机之前', ballPara, probability);
+            if(Math.random() >= probability.probabilityD) {
+                Math.random() < 0.5 ? ballPara.direction += 10 : ballPara.direction -= 10;
+            }
+            if(Math.random() >= probability.probabilityV0) {
+                Math.random() < 0.5 ? ballPara.v0 += 10 : ballPara.v0 -= 10;
+            }
+            console.log('随机之后', ballPara, probability);
             football.ballPara = ballPara;
             football.isMove = true;
             football.move();
@@ -160,10 +205,10 @@ class Footballer extends PhysicsModel {
                 const xV = Math.cos(this.direction * Math.PI / 180) * status.beforeV;
                 const yV = Math.sin(this.direction * Math.PI / 180) * status.beforeV;
                 //1是指在1秒内完成方向的变换。
-                if(!Footballer.count) {
+                if(!this.isChangeDirection) {
                     status.xA = xV - status.beforeXV / 1;
                     status.yA = yV - status.beforeYV / 1;
-                    Footballer.count = 1;
+                    this.isChangeDirection = true;
                 }
                 if (nowTime - status.startTimeOnChangeDirection >= 1) {
                     //变换好方向之后，还要重新矫正球运动的方向。
@@ -176,7 +221,7 @@ class Footballer extends PhysicsModel {
                     status.index = status.index0;
                     status.index0 = 0;
                     status.startTimeOnChangeDirection = 0;
-                    Footballer.count = 0;
+                    this.isChangeDirection = false;
                 }
                 console.log(5);
                 break;
@@ -197,9 +242,11 @@ class Footballer extends PhysicsModel {
         xMove = ratio * this.getMoveDistance(status.beforeXV, status.xA, t, 'X');
         yMove = ratio * this.getMoveDistance(status.beforeYV, status.yA, t, 'Y');
 
-
+        const sibling = this.dom.nextElementSibling;
         this.dom.setAttribute('cx', location.newX + xMove);
         this.dom.setAttribute('cy', location.newY + yMove);
+        sibling.setAttribute('x', location.newX + xMove);
+        sibling.setAttribute('y', location.newY + yMove);
 
         location.newX += xMove;
         location.newY += yMove;
